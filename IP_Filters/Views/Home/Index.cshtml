@@ -1,0 +1,111 @@
+﻿@{
+    ViewBag.Title = "IP Filters - Index";
+
+    var originalImage = ViewBag.OriginalImage as string;
+
+    var resultImage = ViewBag.ResultImage as string;
+
+    var showOriginal = !string.IsNullOrEmpty(originalImage);
+}
+
+<h2>IP Filters</h2>
+
+<!-- Image Upload & Result Section -->
+<div style="display: flex; gap: 20px; margin-bottom: 30px;">
+    <!-- Drag & Drop Area with Preview -->
+    <div>
+        <label><strong>Original Image</strong></label>
+        <div id="drop-area"
+             style="width: 300px; height: 200px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; position: relative;">
+            <input type="file" id="fileElem" accept="image/*" style="display: none;" />
+            <img id="originalImage" src="@originalImage" style="max-width: 100%; max-height: 100%; position: absolute; @(showOriginal ? "" : "display:none;")" />
+            <p id="dropText" style="z-index: 1; @(showOriginal ? "display:none;" : "")">Drag & Drop Image Here</p>
+        </div>
+    </div>
+
+    <!-- Result Image Box -->
+    <div>
+        <label><strong>Filtered Image</strong></label>
+        <div style="width: 300px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;">
+            <img id="resultImage" src="@resultImage" alt="Result Image" style="max-width: 100%; max-height: 100%;" />
+        </div>
+    </div>
+</div>
+
+<!-- Change Color Section -->
+<div style="border: 2px solid #ccc; padding: 20px; width: 400px;">
+    <h4>Change Color</h4>
+
+    <form asp-controller="Filters" asp-action="DefaultColor" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+        <input type="file" name="imageFile" id="defaultFile" accept="image/*" style="display: none;" />
+        <button type="submit">Default Color</button>
+    </form>
+
+    <form asp-controller="Filters" asp-action="GrayColor" method="post" enctype="multipart/form-data" id="grayForm">
+        <input type="file" name="imageFile" id="grayFile" accept="image/*" style="display: none;" />
+        <button type="button" id="grayButton">Gray Color</button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const dropArea = document.getElementById("drop-area");
+        const fileElem = document.getElementById("fileElem");
+        const originalImage = document.getElementById("originalImage");
+        const resultImage = document.getElementById("resultImage");
+        const dropText = document.getElementById("dropText");
+
+        let uploadedFile = null;
+
+        dropArea.addEventListener("click", () => fileElem.click());
+
+        dropArea.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#000";
+        });
+
+        dropArea.addEventListener("dragleave", () => {
+            dropArea.style.borderColor = "#ccc";
+        });
+
+        dropArea.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#ccc";
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileElem.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        function handleFile(file) {
+            uploadedFile = file;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imageData = event.target.result;
+                originalImage.src = imageData;
+                originalImage.style.display = "block";
+                resultImage.src = imageData;
+                dropText.style.display = "none";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById("grayButton").addEventListener("click", function () {
+            if (uploadedFile) {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(uploadedFile);
+                document.getElementById("grayFile").files = dataTransfer.files;
+                document.getElementById("grayForm").submit();
+            } else {
+                alert("Please drag and drop an image first.");
+            }
+        });
+    </script>
+}
