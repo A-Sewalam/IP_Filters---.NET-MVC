@@ -1,67 +1,131 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http // Required for HttpContext.Session
+@{
     ViewBag.Title = "IP Filters - Index";
 
-    var originalImage = ViewBag.OriginalImage as string;
 
-    var resultImage = ViewBag.ResultImage as string;
 
-    var showOriginal = !string.IsNullOrEmpty(originalImage);
+    var originalImageSessionPath = Context.Session.GetString("OriginalImagePath");
+
+    var resultImageSessionPath = Context.Session.GetString("ResultImagePath");
+
+
+
+    var showOriginalFromSession = !string.IsNullOrEmpty(originalImageSessionPath);
+
+    var showResultFromSession = !string.IsNullOrEmpty(resultImageSessionPath);
+
+
+
+    var errorMessage = TempData["Error"] as string;
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+
+{
+    <div class="alert alert-danger" role="alert" style="margin-top:10px; margin-bottom:10px;">
+        @errorMessage
+    </div>
 }
 
 <h2>IP Filters</h2>
 
-<!-- Image Upload & Result Section -->
-<div style="display: flex; gap: 20px; margin-bottom: 30px;">
-    <!-- Drag & Drop Area with Preview -->
+<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px;">
     <div>
         <label><strong>Original Image</strong></label>
         <div id="drop-area"
-             style="width: 300px; height: 200px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; position: relative;">
+             style="width: 300px; height: 200px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; background-color: #f9f9f9;">
             <input type="file" id="fileElem" accept="image/*" style="display: none;" />
-            <img id="originalImage" src="@originalImage" style="max-width: 100%; max-height: 100%; position: absolute; @(showOriginal ? "" : "display:none;")" />
-            <p id="dropText" style="z-index: 1; @(showOriginal ? "display:none;" : "")">Drag & Drop Image Here</p>
+            <img id="originalImagePreview" src="@originalImageSessionPath" alt="Original Image" style="max-width: 100%; max-height: 100%; position: absolute; @(showOriginalFromSession ? "" : "display:none;")" />
+            <p id="dropText" style="z-index: 1; text-align:center; @(showOriginalFromSession ? "display:none;" : "")">Drag & Drop Image Here<br />or Click to Select</p>
         </div>
     </div>
 
-    <!-- Result Image Box -->
     <div>
         <label><strong>Filtered Image</strong></label>
-        <div style="width: 300px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;">
-            <img id="resultImage" src="@resultImage" alt="Result Image" style="max-width: 100%; max-height: 100%;" />
+        <div style="width: 300px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9;">
+            <img id="resultImagePreview" src="@(showResultFromSession ? resultImageSessionPath : "#")" alt="Result Image" style="max-width: 100%; max-height: 100%; @(showResultFromSession ? "" : "display:none;")" />
+            <p id="resultPlaceholder" style="text-align:center; @(showResultFromSession ? "display:none;" : "")">Result Image</p>
         </div>
     </div>
 </div>
 
-<!-- Change Color Section -->
-<div style="border: 2px solid #ccc; padding: 20px; width: 400px;">
-    <h4>Change Color</h4>
+<div style="border: 2px solid #ccc; padding: 20px; width: auto; max-width:400px;">
+    <h4>Change Colors</h4>
 
-    <form asp-controller="Filters" asp-action="DefaultColor" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+    <form asp-controller="Filters" asp-action="DefaultColor" method="post" enctype="multipart/form-data" id="defaultForm" style="margin-bottom: 10px;">
         <input type="file" name="imageFile" id="defaultFile" accept="image/*" style="display: none;" />
-        <button type="submit">Default Color</button>
+        <button type="button" id="defaultButton" class="btn btn-primary" style="width:150px;">Default Color</button>
     </form>
 
     <form asp-controller="Filters" asp-action="GrayColor" method="post" enctype="multipart/form-data" id="grayForm">
         <input type="file" name="imageFile" id="grayFile" accept="image/*" style="display: none;" />
-        <button type="button" id="grayButton">Gray Color</button>
+        <button type="button" id="grayButton" class="btn btn-secondary" style="width:150px;">Gray Color</button>
     </form>
 </div>
+
+@* ... (existing code in Index.cshtml above this) ... *@
+
+<div style="border: 2px solid #ccc; padding: 20px; width: auto; max-width:400px; margin-top: 20px;">
+    <h4>Add Noise</h4>
+
+    <form asp-controller="Filters" asp-action="SaltAndPepperNoise" method="post" enctype="multipart/form-data" id="saltAndPepperForm" style="margin-bottom: 10px;">
+        <input type="file" name="imageFile" id="saltAndPepperFile" accept="image/*" style="display: none;" />
+        <button type="button" id="saltAndPepperButton" class="btn btn-warning" style="width:190px;">Salt & Pepper Noise</button>
+    </form>
+
+    <form asp-controller="Filters" asp-action="GaussianNoise" method="post" enctype="multipart/form-data" id="gaussianForm" style="margin-bottom: 10px;">
+        <input type="file" name="imageFile" id="gaussianFile" accept="image/*" style="display: none;" />
+        <button type="button" id="gaussianButton" class="btn btn-warning" style="width:190px;">Gaussian Noise</button>
+    </form>
+
+    <form asp-controller="Filters" asp-action="PoissonNoise" method="post" enctype="multipart/form-data" id="poissonForm">
+        <input type="file" name="imageFile" id="poissonFile" accept="image/*" style="display: none;" />
+        <button type="button" id="poissonButton" class="btn btn-warning" style="width:190px;">Poisson Noise</button>
+    </form>
+</div>
+
+@* ... (rest of your Index.cshtml, including the @section Scripts section) ... *@
 
 @section Scripts {
     <script>
         const dropArea = document.getElementById("drop-area");
         const fileElem = document.getElementById("fileElem");
-        const originalImage = document.getElementById("originalImage");
-        const resultImage = document.getElementById("resultImage");
+        const originalImagePreview = document.getElementById("originalImagePreview");
+        const resultImagePreview = document.getElementById("resultImagePreview");
+        const resultPlaceholder = document.getElementById("resultPlaceholder");
         const dropText = document.getElementById("dropText");
 
-        let uploadedFile = null;
+        let currentImageFile = null; // Holds the File object of a newly selected/dropped image
+
+        // Called when a new file is selected via input or drag-drop
+        function handleNewFileSelected(file) {
+            if (file && file.type.startsWith("image/")) {
+                currentImageFile = file; // This is the new original for the upcoming operations
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imageDataUrl = event.target.result;
+                    originalImagePreview.src = imageDataUrl;
+                    originalImagePreview.style.display = "block";
+                    dropText.style.display = "none";
+
+                    // Initially, the result preview also shows this new image
+                    resultImagePreview.src = imageDataUrl;
+                    resultImagePreview.style.display = "block";
+                    if (resultPlaceholder) resultPlaceholder.style.display = "none";
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert("Please select an image file (e.g., PNG, JPG, GIF).");
+                if (fileElem.value) fileElem.value = ""; // Clear file input if invalid
+                currentImageFile = null;
+            }
+        }
 
         dropArea.addEventListener("click", () => fileElem.click());
 
         dropArea.addEventListener("dragover", (e) => {
             e.preventDefault();
-            dropArea.style.borderColor = "#000";
+            dropArea.style.borderColor = "#333";
         });
 
         dropArea.addEventListener("dragleave", () => {
@@ -71,41 +135,113 @@
         dropArea.addEventListener("drop", (e) => {
             e.preventDefault();
             dropArea.style.borderColor = "#ccc";
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
+            if (e.dataTransfer.files.length > 0) {
+                handleNewFileSelected(e.dataTransfer.files[0]);
             }
         });
 
         fileElem.addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                handleFile(file);
+            if (e.target.files.length > 0) {
+                handleNewFileSelected(e.target.files[0]);
+            } else {
+                currentImageFile = null; // No file selected
             }
         });
 
-        function handleFile(file) {
-            uploadedFile = file;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const imageData = event.target.result;
-                originalImage.src = imageData;
-                originalImage.style.display = "block";
-                resultImage.src = imageData;
-                dropText.style.display = "none";
-            };
-            reader.readAsDataURL(file);
+        async function imageUrlToFile(url, filename) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} for ${url}`);
+                }
+                const blob = await response.blob();
+                const finalFilename = (filename && filename.includes('.')) ? filename : "image_from_server.png";
+                const mimeType = blob.type || 'image/png'; // Default to png if blob.type is missing
+                return new File([blob], finalFilename, { type: mimeType });
+            } catch (error) {
+                console.error("Error fetching image from URL:", error);
+                throw error;
+            }
         }
 
-        document.getElementById("grayButton").addEventListener("click", function () {
-            if (uploadedFile) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(uploadedFile);
-                document.getElementById("grayFile").files = dataTransfer.files;
-                document.getElementById("grayForm").submit();
-            } else {
-                alert("Please drag and drop an image first.");
+        async function submitForFiltering(formId, inputId) {
+            let fileToSubmit = null;
+            let isSubmittingNewOriginal = false;
+
+            const resultImageSrc = resultImagePreview.getAttribute('src');
+            const originalImageSrcForFallback = originalImagePreview.getAttribute('src'); // Used if result is not usable
+
+            if (currentImageFile) {
+                // A new file was just selected/dropped. This is the new original.
+                fileToSubmit = currentImageFile;
+                isSubmittingNewOriginal = true;
+            } else if (resultImageSrc && resultImageSrc !== '#' && !resultImageSrc.startsWith('data:')) {
+                // Result image has a server path, use it for further filtering
+                console.log("Submitting based on current result image:", resultImageSrc);
+                try {
+                    let filename = resultImageSrc.substring(resultImageSrc.lastIndexOf('/') + 1) || "filtered_image.png";
+                    fileToSubmit = await imageUrlToFile(resultImageSrc, filename);
+                } catch (error) {
+                    alert("Failed to use the filtered image. Please try uploading again.");
+                    return;
+                }
+            } else if (originalImageSrcForFallback && originalImageSrcForFallback !== '#' && !originalImageSrcForFallback.startsWith('data:')) {
+                // No new file, result image not usable, try original image if it's from server
+                console.log("Submitting based on original image (fallback):", originalImageSrcForFallback);
+                try {
+                    let filename = originalImageSrcForFallback.substring(originalImageSrcForFallback.lastIndexOf('/') + 1) || "original_image.png";
+                    fileToSubmit = await imageUrlToFile(originalImageSrcForFallback, filename);
+                } catch (error) {
+                    alert("Failed to use the original image. Please try uploading again.");
+                    return;
+                }
             }
+            // Note: We are not handling the case where originalImageSrcForFallback is a dataURL here,
+            // because 'currentImageFile' should cover that scenario for new uploads.
+
+            if (fileToSubmit) {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(fileToSubmit);
+
+                const hiddenFileInput = document.getElementById(inputId);
+                hiddenFileInput.files = dataTransfer.files;
+
+                // Add/Update hidden input for isNewOriginal flag
+                const formElement = document.getElementById(formId);
+                let isNewOriginalInput = formElement.querySelector('input[name="isNewOriginal"]');
+                if (!isNewOriginalInput) {
+                    isNewOriginalInput = document.createElement('input');
+                    isNewOriginalInput.type = 'hidden';
+                    isNewOriginalInput.name = 'isNewOriginal';
+                    formElement.appendChild(isNewOriginalInput);
+                }
+                isNewOriginalInput.value = isSubmittingNewOriginal.toString();
+
+                if (isSubmittingNewOriginal) {
+                    currentImageFile = null; 
+                }
+                formElement.submit();
+            } else {
+                alert("Please upload an image first or ensure a previous filter result is available.");
+            }
+        }
+
+      
+        document.getElementById("defaultButton").addEventListener("click", async function () {
+            await submitForFiltering("defaultForm", "defaultFile");
         });
+        document.getElementById("grayButton").addEventListener("click", async function () {
+            await submitForFiltering("grayForm", "grayFile");
+        });
+        document.getElementById("saltAndPepperButton").addEventListener("click", async function () {
+            await submitForFiltering("saltAndPepperForm", "saltAndPepperFile");
+        });
+        document.getElementById("gaussianButton").addEventListener("click", async function () {
+            await submitForFiltering("gaussianForm", "gaussianFile");
+        });
+        document.getElementById("poissonButton").addEventListener("click", async function () {
+            await submitForFiltering("poissonForm", "poissonFile");
+        });
+
     </script>
 }
