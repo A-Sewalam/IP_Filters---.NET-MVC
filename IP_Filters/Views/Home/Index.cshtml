@@ -1,4 +1,6 @@
-﻿@using Microsoft.AspNetCore.Http // Required for HttpContext.Session
+@using Microsoft.AspNetCore.Http
+@using System.Text.Json
+
 @{
     ViewBag.Title = "IP Filters - Index";
 
@@ -16,75 +18,256 @@
 
 
 
+    var showHistogramSessionFlag = Context.Session.GetString("ShowHistogram");
+
+    var shouldShowHistogram = "true".Equals(showHistogramSessionFlag, StringComparison.OrdinalIgnoreCase);
+
+
+
+    int[] histogramData = null;
+
+    if (shouldShowHistogram)
+
+    {
+
+        var histogramJson = Context.Session.GetString("HistogramData");
+
+        if (!string.IsNullOrEmpty(histogramJson))
+
+        {
+
+            try
+
+            {
+
+                histogramData = JsonSerializer.Deserialize<int[]>(histogramJson);
+
+            }
+
+            catch (JsonException ex)
+
+            {
+
+                Console.WriteLine($"Error deserializing histogram data: {ex.Message}");
+
+                Context.Session.Remove("HistogramData");
+
+                Context.Session.Remove("ShowHistogram");
+
+                shouldShowHistogram = false;
+
+            }
+
+        }
+
+        else
+
+        {
+
+            shouldShowHistogram = false; 
+
+        }
+
+    }
+
+
+
     var errorMessage = TempData["Error"] as string;
 }
 
-@if (!string.IsNullOrEmpty(errorMessage))
 
-{
-    <div class="alert alert-danger" role="alert" style="margin-top:10px; margin-bottom:10px;">
-        @errorMessage
-    </div>
-}
+
+
+
+
 
 <h2>IP Filters</h2>
 
-<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px;">
-    <div>
+<div style="display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 20px; margin-bottom: 30px; width: 100%;">
+    <div style="flex: 1; min-width: 300px; max-width: 400px;">
         <label><strong>Original Image</strong></label>
         <div id="drop-area"
-             style="width: 300px; height: 200px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; background-color: #f9f9f9;">
+             style="width: 100%; height: 250px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; background-color: #f9f9f9;">
             <input type="file" id="fileElem" accept="image/*" style="display: none;" />
             <img id="originalImagePreview" src="@originalImageSessionPath" alt="Original Image" style="max-width: 100%; max-height: 100%; position: absolute; @(showOriginalFromSession ? "" : "display:none;")" />
             <p id="dropText" style="z-index: 1; text-align:center; @(showOriginalFromSession ? "display:none;" : "")">Drag & Drop Image Here<br />or Click to Select</p>
         </div>
     </div>
 
-    <div>
+    <div style="flex: 1; min-width: 300px; max-width: 400px;">
         <label><strong>Filtered Image</strong></label>
-        <div style="width: 300px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9;">
+        <div style="width: 100%; height: 250px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9;">
             <img id="resultImagePreview" src="@(showResultFromSession ? resultImageSessionPath : "#")" alt="Result Image" style="max-width: 100%; max-height: 100%; @(showResultFromSession ? "" : "display:none;")" />
             <p id="resultPlaceholder" style="text-align:center; @(showResultFromSession ? "display:none;" : "")">Result Image</p>
         </div>
     </div>
+
+    <div id="histogramDisplayArea" style="flex: 1; min-width: 300px; max-width: 450px; @(shouldShowHistogram ? "" : "display:none;") border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
+        <label><strong>Histogram</strong></label>
+        <canvas id="histogramCanvas" width="400" height="230"></canvas>
+    </div>
 </div>
 
-<div style="border: 2px solid #ccc; padding: 20px; width: auto; max-width:400px;">
-    <h4>Change Colors</h4>
 
-    <form asp-controller="Filters" asp-action="DefaultColor" method="post" enctype="multipart/form-data" id="defaultForm" style="margin-bottom: 10px;">
-        <input type="file" name="imageFile" id="defaultFile" accept="image/*" style="display: none;" />
-        <button type="button" id="defaultButton" class="btn btn-primary" style="width:150px;">Default Color</button>
-    </form>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px;">
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 200px;">
+        <h4>Change Colors</h4>
+        <form asp-controller="Filters" asp-action="DefaultColor" method="post" enctype="multipart/form-data" id="defaultForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="defaultFile" accept="image/*" style="display: none;" />
+            <button type="button" id="defaultButton" class="btn btn-primary" style="width:100%;">Default Color</button>
+        </form>
+        <form asp-controller="Filters" asp-action="GrayColor" method="post" enctype="multipart/form-data" id="grayForm">
+            <input type="file" name="imageFile" id="grayFile" accept="image/*" style="display: none;" />
+            <button type="button" id="grayButton" class="btn btn-secondary" style="width:100%;">Gray Color</button>
+        </form>
+    </div>
 
-    <form asp-controller="Filters" asp-action="GrayColor" method="post" enctype="multipart/form-data" id="grayForm">
-        <input type="file" name="imageFile" id="grayFile" accept="image/*" style="display: none;" />
-        <button type="button" id="grayButton" class="btn btn-secondary" style="width:150px;">Gray Color</button>
-    </form>
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 220px;">
+        <h4>Add Noise</h4>
+        <form asp-controller="Filters" asp-action="SaltAndPepperNoise" method="post" enctype="multipart/form-data" id="saltAndPepperForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="saltAndPepperFile" accept="image/*" style="display: none;" />
+            <button type="button" id="saltAndPepperButton" class="btn btn-warning" style="width:100%;">Salt & Pepper Noise</button>
+        </form>
+        <form asp-controller="Filters" asp-action="GaussianNoise" method="post" enctype="multipart/form-data" id="gaussianForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="gaussianFile" accept="image/*" style="display: none;" />
+            <button type="button" id="gaussianButton" class="btn btn-warning" style="width:100%;">Gaussian Noise</button>
+        </form>
+        <form asp-controller="Filters" asp-action="PoissonNoise" method="post" enctype="multipart/form-data" id="poissonForm">
+            <input type="file" name="imageFile" id="poissonFile" accept="image/*" style="display: none;" />
+            <button type="button" id="poissonButton" class="btn btn-warning" style="width:100%;">Poisson Noise</button>
+        </form>
+    </div>
+
+   
+
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 220px;">
+        <h4>Histogram</h4>
+        <form asp-controller="Filters" asp-action="ViewHistogram" method="post" enctype="multipart/form-data" id="viewHistogramForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="viewHistogramFile" accept="image/*" style="display: none;" />
+            <button type="button" id="viewHistogramButton" class="btn btn-success" style="width:100%;">View Histogram</button>
+        </form>
+        <form asp-controller="Filters" asp-action="ApplyHistogramEqualization" method="post" enctype="multipart/form-data" id="applyHistogramEqualizationForm">
+            <input type="file" name="imageFile" id="applyHistogramEqualizationFile" accept="image/*" style="display: none;" />
+            <button type="button" id="applyHistogramEqualizationButton" class="btn btn-success" style="width:100%;">Apply Equalization</button>
+        </form>
+    </div>
+
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 220px;">
+        <h4>Point Transform</h4>
+        <form asp-controller="Filters" asp-action="AdjustBrightness" method="post" enctype="multipart/form-data" id="brightnessForm" style="display:none;">
+            <input type="file" name="imageFile" id="brightnessFile" accept="image/*" />
+            <input type="hidden" name="brightness" id="brightnessLevelInput" />
+        </form>
+        <button type="button" id="showBrightnessModalButton" class="btn btn-info" style="width:100%; margin-bottom:10px;">Adjust Brightness</button>
+
+        <form asp-controller="Filters" asp-action="AdjustContrast" method="post" enctype="multipart/form-data" id="contrastForm" style="display:none;">
+            <input type="file" name="imageFile" id="contrastFile" accept="image/*" />
+            <input type="hidden" name="contrast" id="contrastLevelInput" />
+        </form>
+        <button type="button" id="showContrastModalButton" class="btn btn-info" style="width:100%;">Adjust Contrast</button>
+    </div>
+
+
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 500px;">
+        <h4>Local Transform</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 15px;">
+            <div style="flex: 1; min-width: 230px; border: 1px solid #e0e0e0; padding: 15px; border-radius: 5px; background-color: #f9f9f9;">
+                <h5>Smoothing</h5>
+                <form asp-controller="Filters" asp-action="ApplyLowPassFilter" method="post" enctype="multipart/form-data" id="lowPassForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="lowPassFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="lowPassButton" class="btn btn-info w-100">Low Pass Filter (3x3 Avg)</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyAveragingFilter" method="post" enctype="multipart/form-data" id="averagingForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="averagingFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="averagingButton" class="btn btn-info w-100">Averaging Filter (3x3)</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyMedianFilter" method="post" enctype="multipart/form-data" id="medianForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="medianFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="medianButton" class="btn btn-info w-100">Median Filter (3x3)</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyGaussianFilter" method="post" enctype="multipart/form-data" id="gaussianKernelForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="gaussianKernelFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="gaussianKernelButton" class="btn btn-info w-100">Gaussian Filter (3x3)</button>
+                </form>
+            </div>
+
+            <div style="flex: 1; min-width: 230px; border: 1px solid #e0e0e0; padding: 15px; border-radius: 5px; background-color: #f9f9f9;">
+                <h5 style="margin-top:0;">Edge Detection</h5> <form asp-controller="Filters" asp-action="ApplyHighPassFilter" method="post" enctype="multipart/form-data" id="highPassForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="highPassFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="highPassButton" class="btn btn-info w-100">High Pass Filter (Sharpen)</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyLaplacianFilter" method="post" enctype="multipart/form-data" id="laplacianForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="laplacianFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="laplacianButton" class="btn btn-info w-100">Laplacian Filter</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyLoGFilter" method="post" enctype="multipart/form-data" id="logForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="logFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="logButton" class="btn btn-info w-100">Laplacian of Gaussian</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplyPrewittFilter" method="post" enctype="multipart/form-data" id="prewittForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="prewittFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="prewittButton" class="btn btn-info w-100">Prewitt Filter</button>
+                </form>
+                <form asp-controller="Filters" asp-action="ApplySobelFilter" method="post" enctype="multipart/form-data" id="sobelForm" style="margin-bottom: 10px;">
+                    <input type="file" name="imageFile" id="sobelFile" accept="image/*" style="display: none;" />
+                    <button type="button" id="sobelButton" class="btn btn-info w-100">Sobel Filter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 250px;">
+        <h4>Global Transform</h4>
+        <form asp-controller="Filters" asp-action="DetectLinesHough" method="post" enctype="multipart/form-data" id="houghLineForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="houghLineFile" accept="image/*" style="display: none;" />
+            <button type="button" id="houghLineButton" class="btn btn-success" style="width:100%;">Line Detection (Hough)</button>
+        </form>
+        <form asp-controller="Filters" asp-action="DetectCirclesHough" method="post" enctype="multipart/form-data" id="houghCircleForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="houghCircleFile" accept="image/*" style="display: none;" />
+            <button type="button" id="houghCircleButton" class="btn btn-success" style="width:100%;">Circle Detection (Hough)</button>
+        </form>
+    </div>
+
+    <div style="border: 2px solid #ccc; padding: 20px; width: auto; min-width: 250px;">
+        <h4>Morphological Operations</h4>
+        <form asp-controller="Filters" asp-action="ApplyDilation" method="post" enctype="multipart/form-data" id="dilationForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="dilationFile" accept="image/*" style="display: none;" />
+            <button type="button" id="dilationButton" class="btn btn-warning" style="width:100%;">Dilation</button>
+        </form>
+        <form asp-controller="Filters" asp-action="ApplyErosion" method="post" enctype="multipart/form-data" id="erosionForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="erosionFile" accept="image/*" style="display: none;" />
+            <button type="button" id="erosionButton" class="btn btn-warning" style="width:100%;">Erosion</button>
+        </form>
+        <form asp-controller="Filters" asp-action="ApplyOpen" method="post" enctype="multipart/form-data" id="openForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="openFile" accept="image/*" style="display: none;" />
+            <button type="button" id="openButton" class="btn btn-warning" style="width:100%;">Open</button>
+        </form>
+        <form asp-controller="Filters" asp-action="ApplyClose" method="post" enctype="multipart/form-data" id="closeForm" style="margin-bottom: 10px;">
+            <input type="file" name="imageFile" id="closeFile" accept="image/*" style="display: none;" />
+            <button type="button" id="closeButton" class="btn btn-warning" style="width:100%;">Close</button>
+        </form>
+        <small>(default Square kernel)</small>
+    </div>
 </div>
 
-@* ... (existing code in Index.cshtml above this) ... *@
-
-<div style="border: 2px solid #ccc; padding: 20px; width: auto; max-width:400px; margin-top: 20px;">
-    <h4>Add Noise</h4>
-
-    <form asp-controller="Filters" asp-action="SaltAndPepperNoise" method="post" enctype="multipart/form-data" id="saltAndPepperForm" style="margin-bottom: 10px;">
-        <input type="file" name="imageFile" id="saltAndPepperFile" accept="image/*" style="display: none;" />
-        <button type="button" id="saltAndPepperButton" class="btn btn-warning" style="width:190px;">Salt & Pepper Noise</button>
-    </form>
-
-    <form asp-controller="Filters" asp-action="GaussianNoise" method="post" enctype="multipart/form-data" id="gaussianForm" style="margin-bottom: 10px;">
-        <input type="file" name="imageFile" id="gaussianFile" accept="image/*" style="display: none;" />
-        <button type="button" id="gaussianButton" class="btn btn-warning" style="width:190px;">Gaussian Noise</button>
-    </form>
-
-    <form asp-controller="Filters" asp-action="PoissonNoise" method="post" enctype="multipart/form-data" id="poissonForm">
-        <input type="file" name="imageFile" id="poissonFile" accept="image/*" style="display: none;" />
-        <button type="button" id="poissonButton" class="btn btn-warning" style="width:190px;">Poisson Noise</button>
-    </form>
+<div style="margin-top: 20px; margin-bottom: 30px; text-align: center;">
+    <button type="button" id="downloadResultButton" class="btn btn-lg btn-success">Download Result Image</button>
 </div>
 
-@* ... (rest of your Index.cshtml, including the @section Scripts section) ... *@
+
+<div id="brightnessModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color:#fff; margin:10% auto; padding:20px; border:1px solid #888; border-radius:5px; width:90%; max-width:450px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+        <span id="closeBrightnessModal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor:pointer;">&times;</span>
+        <h4>Adjust Brightness</h4><hr /><div style="margin-top:15px; margin-bottom:15px;"><label for="brightnessSlider">Brightness: <span id="brightnessValueLabel">0</span></label><input type="range" min="-100" max="100" value="0" class="slider form-control-range" id="brightnessSlider" style="width:100%; padding:0;"></div><button type="button" id="applyBrightnessButton" class="btn btn-success" style="margin-top:10px;">Apply</button>
+    </div>
+</div>
+<div id="contrastModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color:#fff; margin:10% auto; padding:20px; border:1px solid #888; border-radius:5px; width:90%; max-width:450px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+        <span id="closeContrastModal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor:pointer;">&times;</span>
+        <h4>Adjust Contrast</h4><hr /><div style="margin-top:15px; margin-bottom:15px;"><label for="contrastSlider">Contrast: <span id="contrastValueLabel">1.0</span></label><input type="range" min="0.1" max="3.0" value="1.0" step="0.1" class="slider form-control-range" id="contrastSlider" style="width:100%; padding:0;"></div><button type="button" id="applyContrastButton" class="btn btn-success" style="margin-top:10px;">Apply</button>
+    </div>
+</div>
+
 
 @section Scripts {
     <script>
@@ -94,47 +277,52 @@
         const resultImagePreview = document.getElementById("resultImagePreview");
         const resultPlaceholder = document.getElementById("resultPlaceholder");
         const dropText = document.getElementById("dropText");
+        const histogramDisplayArea = document.getElementById("histogramDisplayArea");
+        const histogramCanvas = document.getElementById("histogramCanvas");
+        const downloadResultButton = document.getElementById("downloadResultButton");
 
-        let currentImageFile = null; // Holds the File object of a newly selected/dropped image
+        let currentImageFile = null;
 
-        // Called when a new file is selected via input or drag-drop
         function handleNewFileSelected(file) {
             if (file && file.type.startsWith("image/")) {
-                currentImageFile = file; // This is the new original for the upcoming operations
+                currentImageFile = file;
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const imageDataUrl = event.target.result;
                     originalImagePreview.src = imageDataUrl;
                     originalImagePreview.style.display = "block";
                     dropText.style.display = "none";
-
-                    // Initially, the result preview also shows this new image
                     resultImagePreview.src = imageDataUrl;
                     resultImagePreview.style.display = "block";
                     if (resultPlaceholder) resultPlaceholder.style.display = "none";
-                };
+                    histogramDisplayArea.style.display = "none";
+        @{
+            Context.Session.SetString("ShowHistogram", "false");
+        } 
+                        };
                 reader.readAsDataURL(file);
             } else {
                 alert("Please select an image file (e.g., PNG, JPG, GIF).");
-                if (fileElem.value) fileElem.value = ""; // Clear file input if invalid
+                if (fileElem.value) fileElem.value = "";
                 currentImageFile = null;
             }
         }
 
         dropArea.addEventListener("click", () => fileElem.click());
 
+       
         dropArea.addEventListener("dragover", (e) => {
             e.preventDefault();
-            dropArea.style.borderColor = "#333";
+            dropArea.style.borderColor = "blue";
         });
 
         dropArea.addEventListener("dragleave", () => {
-            dropArea.style.borderColor = "#ccc";
+            dropArea.style.borderColor = "#ccc"; 
         });
 
         dropArea.addEventListener("drop", (e) => {
             e.preventDefault();
-            dropArea.style.borderColor = "#ccc";
+            dropArea.style.borderColor = "#ccc"; 
             if (e.dataTransfer.files.length > 0) {
                 handleNewFileSelected(e.dataTransfer.files[0]);
             }
@@ -144,104 +332,216 @@
             if (e.target.files.length > 0) {
                 handleNewFileSelected(e.target.files[0]);
             } else {
-                currentImageFile = null; // No file selected
+                currentImageFile = null;
             }
         });
 
-        async function imageUrlToFile(url, filename) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} for ${url}`);
-                }
-                const blob = await response.blob();
-                const finalFilename = (filename && filename.includes('.')) ? filename : "image_from_server.png";
-                const mimeType = blob.type || 'image/png'; // Default to png if blob.type is missing
-                return new File([blob], finalFilename, { type: mimeType });
-            } catch (error) {
-                console.error("Error fetching image from URL:", error);
-                throw error;
-            }
+        function imageUrlToFile(url, filename) {
+            return fetch(url)
+                .then(response => {
+                    if (!response.ok) { throw new Error(`HTTP error! status: ${response.status} for ${url}`); }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const finalFilename = (filename && filename.includes('.')) ? filename : "image_from_server.png";
+                    const mimeType = blob.type || 'image/png';
+                    return new File([blob], finalFilename, { type: mimeType });
+                });
         }
 
-        async function submitForFiltering(formId, inputId) {
-            let fileToSubmit = null;
-            let isSubmittingNewOriginal = false;
+        function _prepareAndSubmitForm(formId, inputId, fileToSubmit, isSubmittingNewOriginal, adjustmentParameters) {
+            if (!fileToSubmit) { alert("No image data to submit."); return; }
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(fileToSubmit);
+            document.getElementById(inputId).files = dataTransfer.files;
 
-            const resultImageSrc = resultImagePreview.getAttribute('src');
-            const originalImageSrcForFallback = originalImagePreview.getAttribute('src'); // Used if result is not usable
+            const formElement = document.getElementById(formId);
+            let isNewOriginalInput = formElement.querySelector('input[name="isNewOriginal"]');
+            if (!isNewOriginalInput) {
+                isNewOriginalInput = document.createElement('input');
+                isNewOriginalInput.type = 'hidden'; isNewOriginalInput.name = 'isNewOriginal';
+                formElement.appendChild(isNewOriginalInput);
+            }
+            isNewOriginalInput.value = isSubmittingNewOriginal.toString();
 
-            if (currentImageFile) {
-                // A new file was just selected/dropped. This is the new original.
-                fileToSubmit = currentImageFile;
-                isSubmittingNewOriginal = true;
-            } else if (resultImageSrc && resultImageSrc !== '#' && !resultImageSrc.startsWith('data:')) {
-                // Result image has a server path, use it for further filtering
-                console.log("Submitting based on current result image:", resultImageSrc);
-                try {
-                    let filename = resultImageSrc.substring(resultImageSrc.lastIndexOf('/') + 1) || "filtered_image.png";
-                    fileToSubmit = await imageUrlToFile(resultImageSrc, filename);
-                } catch (error) {
-                    alert("Failed to use the filtered image. Please try uploading again.");
-                    return;
-                }
-            } else if (originalImageSrcForFallback && originalImageSrcForFallback !== '#' && !originalImageSrcForFallback.startsWith('data:')) {
-                // No new file, result image not usable, try original image if it's from server
-                console.log("Submitting based on original image (fallback):", originalImageSrcForFallback);
-                try {
-                    let filename = originalImageSrcForFallback.substring(originalImageSrcForFallback.lastIndexOf('/') + 1) || "original_image.png";
-                    fileToSubmit = await imageUrlToFile(originalImageSrcForFallback, filename);
-                } catch (error) {
-                    alert("Failed to use the original image. Please try uploading again.");
-                    return;
+            if (adjustmentParameters) {
+                for (const key in adjustmentParameters) {
+                    if (Object.hasOwnProperty.call(adjustmentParameters, key)) {
+                        let adjInput = formElement.querySelector(`input[name="${key}"]`);
+                        if (!adjInput) {
+                            adjInput = document.createElement('input');
+                            adjInput.type = 'hidden'; adjInput.name = key;
+                            formElement.appendChild(adjInput);
+                        }
+                        adjInput.value = adjustmentParameters[key];
+                    }
                 }
             }
-            // Note: We are not handling the case where originalImageSrcForFallback is a dataURL here,
-            // because 'currentImageFile' should cover that scenario for new uploads.
+            if (isSubmittingNewOriginal) { currentImageFile = null; }
+            formElement.submit();
+        }
 
-            if (fileToSubmit) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(fileToSubmit);
+        function submitForFiltering(formId, inputId, adjustmentParameters = null) {
+            let isSubmittingNewOriginal = false;
+            const resultImageSrc = resultImagePreview.getAttribute('src');
+            const originalImageSrcForFallback = originalImagePreview.getAttribute('src');
 
-                const hiddenFileInput = document.getElementById(inputId);
-                hiddenFileInput.files = dataTransfer.files;
-
-                // Add/Update hidden input for isNewOriginal flag
-                const formElement = document.getElementById(formId);
-                let isNewOriginalInput = formElement.querySelector('input[name="isNewOriginal"]');
-                if (!isNewOriginalInput) {
-                    isNewOriginalInput = document.createElement('input');
-                    isNewOriginalInput.type = 'hidden';
-                    isNewOriginalInput.name = 'isNewOriginal';
-                    formElement.appendChild(isNewOriginalInput);
-                }
-                isNewOriginalInput.value = isSubmittingNewOriginal.toString();
-
-                if (isSubmittingNewOriginal) {
-                    currentImageFile = null; 
-                }
-                formElement.submit();
-            } else {
+            if (currentImageFile) {
+                isSubmittingNewOriginal = true;
+                _prepareAndSubmitForm(formId, inputId, currentImageFile, isSubmittingNewOriginal, adjustmentParameters);
+            } else if (resultImageSrc && resultImageSrc !== '#' && !resultImageSrc.startsWith('data:')) {
+                let filename = resultImageSrc.substring(resultImageSrc.lastIndexOf('/') + 1) || "filtered_image.png";
+                if (filename.startsWith("original_session_")) isSubmittingNewOriginal = true;
+                imageUrlToFile(resultImageSrc, filename)
+                    .then(fileToSubmit => _prepareAndSubmitForm(formId, inputId, fileToSubmit, isSubmittingNewOriginal, adjustmentParameters))
+                    .catch(error => { console.error("Error using filtered image:", error); alert("Failed to use the filtered image. Please try uploading again."); });
+            } else if (originalImageSrcForFallback && originalImageSrcForFallback !== '#' && !originalImageSrcForFallback.startsWith('data:')) {
+                let filename = originalImageSrcForFallback.substring(originalImageSrcForFallback.lastIndexOf('/') + 1) || "original_image.png";
+                isSubmittingNewOriginal = true;
+                imageUrlToFile(originalImageSrcForFallback, filename)
+                    .then(fileToSubmit => _prepareAndSubmitForm(formId, inputId, fileToSubmit, isSubmittingNewOriginal, adjustmentParameters))
+                    .catch(error => { console.error("Error using original image:", error); alert("Failed to use the original image. Please try uploading again."); });
+            }
+            else {
                 alert("Please upload an image first or ensure a previous filter result is available.");
             }
         }
 
-      
-        document.getElementById("defaultButton").addEventListener("click", async function () {
-            await submitForFiltering("defaultForm", "defaultFile");
-        });
-        document.getElementById("grayButton").addEventListener("click", async function () {
-            await submitForFiltering("grayForm", "grayFile");
-        });
-        document.getElementById("saltAndPepperButton").addEventListener("click", async function () {
-            await submitForFiltering("saltAndPepperForm", "saltAndPepperFile");
-        });
-        document.getElementById("gaussianButton").addEventListener("click", async function () {
-            await submitForFiltering("gaussianForm", "gaussianFile");
-        });
-        document.getElementById("poissonButton").addEventListener("click", async function () {
-            await submitForFiltering("poissonForm", "poissonFile");
-        });
+        const brightnessModal = document.getElementById("brightnessModal");
+        const contrastModal = document.getElementById("contrastModal");
+        const showBrightnessModalButton = document.getElementById("showBrightnessModalButton");
+        const showContrastModalButton = document.getElementById("showContrastModalButton");
+        const closeBrightnessModal = document.getElementById("closeBrightnessModal");
+        const closeContrastModal = document.getElementById("closeContrastModal");
+        const brightnessSlider = document.getElementById("brightnessSlider");
+        const contrastSlider = document.getElementById("contrastSlider");
+        const brightnessValueLabel = document.getElementById("brightnessValueLabel");
+        const contrastValueLabel = document.getElementById("contrastValueLabel");
+        const applyBrightnessButton = document.getElementById("applyBrightnessButton");
+        const applyContrastButton = document.getElementById("applyContrastButton");
 
+        if (showBrightnessModalButton) showBrightnessModalButton.onclick = () => { brightnessModal.style.display = "block"; }
+        if (showContrastModalButton) showContrastModalButton.onclick = () => { contrastModal.style.display = "block"; }
+        if (closeBrightnessModal) closeBrightnessModal.onclick = () => { brightnessModal.style.display = "none"; }
+        if (closeContrastModal) closeContrastModal.onclick = () => { contrastModal.style.display = "none"; }
+
+        window.onclick = function (event) {
+            if (event.target == brightnessModal) brightnessModal.style.display = "none";
+            if (event.target == contrastModal) contrastModal.style.display = "none";
+        }
+
+        if (brightnessSlider) brightnessSlider.oninput = () => { brightnessValueLabel.textContent = brightnessSlider.value; }
+        if (contrastSlider) contrastSlider.oninput = () => { contrastValueLabel.textContent = contrastSlider.value; }
+
+        if (applyBrightnessButton) applyBrightnessButton.onclick = () => {
+            const brightnessValue = document.getElementById("brightnessSlider").value;
+            document.getElementById("brightnessLevelInput").value = brightnessValue;
+            brightnessModal.style.display = "none";
+            submitForFiltering("brightnessForm", "brightnessFile", { brightness: brightnessValue });
+        };
+
+        if (applyContrastButton) applyContrastButton.onclick = () => {
+            const contrastValue = document.getElementById("contrastSlider").value;
+            document.getElementById("contrastLevelInput").value = contrastValue;
+            contrastModal.style.display = "none";
+            submitForFiltering("contrastForm", "contrastFile", { contrast: contrastValue });
+        };
+
+        document.getElementById("defaultButton").addEventListener("click", () => submitForFiltering("defaultForm", "defaultFile"));
+        document.getElementById("grayButton").addEventListener("click", () => submitForFiltering("grayForm", "grayFile"));
+        document.getElementById("saltAndPepperButton").addEventListener("click", () => submitForFiltering("saltAndPepperForm", "saltAndPepperFile"));
+        document.getElementById("gaussianButton").addEventListener("click", () => submitForFiltering("gaussianForm", "gaussianFile"));
+        document.getElementById("poissonButton").addEventListener("click", () => submitForFiltering("poissonForm", "poissonFile"));
+
+        document.getElementById("viewHistogramButton").addEventListener("click", () => submitForFiltering("viewHistogramForm", "viewHistogramFile"));
+        document.getElementById("applyHistogramEqualizationButton").addEventListener("click", () => submitForFiltering("applyHistogramEqualizationForm", "applyHistogramEqualizationFile"));
+
+        document.getElementById("lowPassButton").addEventListener("click", () => submitForFiltering("lowPassForm", "lowPassFile"));
+        document.getElementById("averagingButton").addEventListener("click", () => submitForFiltering("averagingForm", "averagingFile"));
+        document.getElementById("medianButton").addEventListener("click", () => submitForFiltering("medianForm", "medianFile"));
+        document.getElementById("gaussianKernelButton").addEventListener("click", () => submitForFiltering("gaussianKernelForm", "gaussianKernelFile"));
+        document.getElementById("highPassButton").addEventListener("click", () => submitForFiltering("highPassForm", "highPassFile"));
+        document.getElementById("laplacianButton").addEventListener("click", () => submitForFiltering("laplacianForm", "laplacianFile"));
+        document.getElementById("logButton").addEventListener("click", () => submitForFiltering("logForm", "logFile"));
+        document.getElementById("prewittButton").addEventListener("click", () => submitForFiltering("prewittForm", "prewittFile"));
+        document.getElementById("sobelButton").addEventListener("click", () => submitForFiltering("sobelForm", "sobelFile"));
+
+        document.getElementById("houghLineButton").addEventListener("click", () => submitForFiltering("houghLineForm", "houghLineFile"));
+        document.getElementById("houghCircleButton").addEventListener("click", () => submitForFiltering("houghCircleForm", "houghCircleFile"));
+        document.getElementById("dilationButton").addEventListener("click", () => submitForFiltering("dilationForm", "dilationFile"));
+        document.getElementById("erosionButton").addEventListener("click", () => submitForFiltering("erosionForm", "erosionFile"));
+        document.getElementById("openButton").addEventListener("click", () => submitForFiltering("openForm", "openFile"));
+        document.getElementById("closeButton").addEventListener("click", () => submitForFiltering("closeForm", "closeFile"));
+
+        if (downloadResultButton) {
+            downloadResultButton.addEventListener("click", () => {
+                const resultSrc = resultImagePreview.getAttribute('src');
+                if (resultSrc && resultSrc !== '#' && !resultSrc.startsWith('data:')) {
+                    const a = document.createElement('a');
+                    a.href = resultSrc;
+                    let filename = resultSrc.substring(resultSrc.lastIndexOf('/') + 1);
+                    if (!filename || filename === "#") {
+                        filename = "filtered_image.png";
+                    }
+                    if (filename.length > 40 && (filename.includes('_') || filename.includes('-'))) {
+                        const ext = filename.substring(filename.lastIndexOf('.'));
+                        filename = "filtered_image" + (ext.length > 1 && ext.length < 5 ? ext : ".png");
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    alert("No result image available to download. Please apply a filter first.");
+                }
+            });
+        }
+
+        function drawHistogram(canvas, data) {
+            if (!data || data.length === 0) {
+                console.log("No histogram data to draw.");
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const barPadding = 1;
+            const numBars = data.length;
+            const barWidth = (width - (numBars - 1) * barPadding) / numBars;
+
+            ctx.clearRect(0, 0, width, height);
+
+            let maxVal = 0;
+            for (let i = 0; i < numBars; i++) {
+                if (data[i] > maxVal) {
+                    maxVal = data[i];
+                }
+            }
+            if (maxVal === 0) maxVal = 1;
+
+            ctx.fillStyle = 'rgb(0, 123, 255)';
+            for (let i = 0; i < numBars; i++) {
+                const barHeight = (data[i] / maxVal) * height;
+                const x = i * (barWidth + barPadding);
+                const y = height - barHeight;
+                ctx.fillRect(x, y, barWidth, barHeight);
+            }
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+            ctx.lineTo(width, height);
+            ctx.stroke();
+        }
+
+        const initialHistogramData = @Html.Raw(histogramData != null ? JsonSerializer.Serialize(histogramData) : "null");
+        if (initialHistogramData && document.getElementById("histogramDisplayArea").style.display !== "none") {
+            drawHistogram(histogramCanvas, initialHistogramData);
+        }
     </script>
 }
