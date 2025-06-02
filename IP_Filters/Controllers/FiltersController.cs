@@ -93,7 +93,7 @@ namespace IP_Filters.Controllers
         }
 
 
-//                                                         *************default image method**************
+//                                                         *************GrayColor method**************
         
 
         [HttpPost]
@@ -143,7 +143,7 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************default image method**************
+        //                                                         *************SaltAndPepperNoise method**************
         
 
         [HttpPost]
@@ -205,7 +205,7 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************default image method**************
+        //                                                         *************GaussianNoise method**************
 
         
 
@@ -255,7 +255,7 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************default image method**************
+        //                                                         *************PoissonNoise method**************
 
 
 
@@ -302,7 +302,7 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        //                                                         *************default image method**************
+        //                                                         *************AdjustBrightness method**************
 
         
 
@@ -347,7 +347,7 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        //                                                         *************default image method**************
+        //                                                         *************AdjustContrast method**************
 
         
 
@@ -395,7 +395,7 @@ namespace IP_Filters.Controllers
         }
 
 
-//                                                         *************default image method**************
+//                                                         *************ViewHistogram method**************
 
 
 
@@ -461,7 +461,7 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************default image method**************
+        //                                                         ************* ApplyHistogramEqualization method**************
 
         
 
@@ -556,11 +556,10 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************initial setup**************
+        //                                                         *************Local Filters**************
 
         
-        //s_histogram_helper_methodes
-
+        //s_Local Filters_helper_methodes
 
         private Bitmap ApplyConvolutionFilter(Bitmap sourceImage, double[,] kernel, double factor = 1.0, int bias = 0, bool grayscaleOutput = false)
         {
@@ -754,7 +753,11 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        //                                                         *************initial setup**************
+        //e_Local Filters_helper_methodes
+
+        
+
+        //                                                         *************ApplyLowPassFilter metheod**************
 
         [HttpPost]
         public IActionResult ApplyLowPassFilter(IFormFile imageFile, string isNewOriginal)
@@ -768,7 +771,7 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0 / 9.0), "lowpass");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyAveragingFilter method**************
 
         [HttpPost]
         public IActionResult ApplyAveragingFilter(IFormFile imageFile, string isNewOriginal)
@@ -776,7 +779,7 @@ namespace IP_Filters.Controllers
             return ApplyLowPassFilter(imageFile, isNewOriginal); 
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyMedianFilter method**************
 
         [HttpPost]
         public IActionResult ApplyMedianFilter(IFormFile imageFile, string isNewOriginal)
@@ -785,7 +788,7 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyMedianFilter(bmp, 3), "median");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyGaussianFilter method**************
 
         [HttpPost]
         public IActionResult ApplyGaussianFilter(IFormFile imageFile, string isNewOriginal) 
@@ -795,7 +798,9 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyConvolutionFilter(bmp, kernel), "gaussian_blur");
         }
 
-        //                                                         *************initial setup**************
+
+        //                                                         *************ApplyHighPassFilter method**************
+        
 
         [HttpPost]
         public IActionResult ApplyHighPassFilter(IFormFile imageFile, string isNewOriginal)
@@ -808,8 +813,10 @@ namespace IP_Filters.Controllers
             return ProcessImageWithFilter(imageFile, isNewOriginal,
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0, 0), "highpass_sharpen");
         }
+        
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyLaplacianFilter method**************
+        
 
         [HttpPost]
         public IActionResult ApplyLaplacianFilter(IFormFile imageFile, string isNewOriginal)
@@ -823,7 +830,7 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0, 0, grayscaleOutput: true), "laplacian");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyLoGFilter setup**************
 
         [HttpPost]
         public IActionResult ApplyLoGFilter(IFormFile imageFile, string isNewOriginal) 
@@ -844,7 +851,7 @@ namespace IP_Filters.Controllers
             }, "log_filter");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyPrewittFilter method**************
 
         [HttpPost]
         public IActionResult ApplyPrewittFilter(IFormFile imageFile, string isNewOriginal)
@@ -907,7 +914,7 @@ namespace IP_Filters.Controllers
 
 
 
-    //                                                         *************initial setup**************
+    //                                                         *************ApplySobelFilter method**************
     
 
         [HttpPost]
@@ -1043,11 +1050,215 @@ namespace IP_Filters.Controllers
             return resultBitmap;
         }
 
+                //                                                         *************DetectLinesHough method**************
 
-        //                                                         *************initial setup**************
 
+        [HttpPost]
+        public IActionResult DetectLinesHough(IFormFile imageFile, string isNewOriginal)
+        {
+            return ProcessImageWithFilter(imageFile, isNewOriginal, (originalBmp) =>
+            {
+                int width = originalBmp.Width;
+                int height = originalBmp.Height;
+
+                // Convert to grayscale
+                Bitmap gray = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+                using (Graphics g = Graphics.FromImage(gray))
+                {
+                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+                    {
+                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
+                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
+                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
+                new float[] {0, 0, 0, 1, 0},
+                new float[] {0, 0, 0, 0, 1}
+                    });
+
+                    using (ImageAttributes attributes = new ImageAttributes())
+                    {
+                        attributes.SetColorMatrix(colorMatrix);
+                        g.DrawImage(originalBmp, new Rectangle(0, 0, width, height),
+                            0, 0, width, height, GraphicsUnit.Pixel, attributes);
+                    }
+                }
+
+                Bitmap edge = ApplySobelAndThreshold(gray, 100);
+
+                int maxRho = (int)Math.Ceiling(Math.Sqrt(width * width + height * height));
+                int rhoRange = 2 * maxRho + 1;
+                int thetaSteps = 180;
+
+                int[,] accumulator = new int[thetaSteps, rhoRange];
+                double[] cosTable = new double[thetaSteps];
+                double[] sinTable = new double[thetaSteps];
+
+                for (int theta = 0; theta < thetaSteps; theta++)
+                {
+                    double rad = theta * Math.PI / 180;
+                    cosTable[theta] = Math.Cos(rad);
+                    sinTable[theta] = Math.Sin(rad);
+                }
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        Color pixel = edge.GetPixel(x, y);
+                        if (pixel.R == 255) 
+                        {
+                            for (int theta = 0; theta < thetaSteps; theta++)
+                            {
+                                double rho = x * cosTable[theta] + y * sinTable[theta];
+                                int rhoIndex = (int)Math.Round(rho) + maxRho;
+                                if (rhoIndex >= 0 && rhoIndex < rhoRange)
+                                    accumulator[theta, rhoIndex]++;
+                            }
+                        }
+                    }
+                }
+
+                int threshold = 350; 
+                Bitmap result = new Bitmap(originalBmp);
+                using (Graphics g = Graphics.FromImage(result))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    using (Pen pen = new Pen(Color.Red, 2))
+                    {
+                        for (int theta = 0; theta < thetaSteps; theta++)
+                        {
+                            for (int rhoIndex = 0; rhoIndex < rhoRange; rhoIndex++)
+                            {
+                                if (accumulator[theta, rhoIndex] > threshold)
+                                {
+                                    double rho = rhoIndex - maxRho;
+                                    double cosTheta = cosTable[theta];
+                                    double sinTheta = sinTable[theta];
+                                    Point pt1 = new Point();
+                                    Point pt2 = new Point();
+
+                                    if (sinTheta != 0)
+                                    {
+                                        pt1.X = 0;
+                                        pt1.Y = (int)((rho - pt1.X * cosTheta) / sinTheta);
+                                        pt2.X = width;
+                                        pt2.Y = (int)((rho - pt2.X * cosTheta) / sinTheta);
+                                    }
+                                    else
+                                    {
+                                        pt1.Y = 0;
+                                        pt1.X = (int)(rho / cosTheta);
+                                        pt2.Y = height;
+                                        pt2.X = (int)(rho / cosTheta);
+                                    }
+
+                                    g.DrawLine(pen, pt1, pt2);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                gray.Dispose();
+                edge.Dispose();
+                return result;
+            }, "hough_line");
+        }
 
         
+
+
+        //                                                         *************DetectCirclesHough method**************
+
+
+        [HttpPost]
+        public IActionResult DetectCirclesHough(IFormFile imageFile, string isNewOriginal)
+        {
+            return ProcessImageWithFilter(imageFile, isNewOriginal, (originalBmp) =>
+            {
+                int radius = 30;            
+                int threshold = 120;         
+                int angleStep = 2;           
+
+                int width = originalBmp.Width;
+                int height = originalBmp.Height;
+
+                Bitmap gray = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+                using (Graphics g = Graphics.FromImage(gray))
+                {
+                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+                    {
+                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
+                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
+                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
+                new float[] {0, 0, 0, 1, 0},
+                new float[] {0, 0, 0, 0, 1}
+                    });
+
+                    using (ImageAttributes attributes = new ImageAttributes())
+                    {
+                        attributes.SetColorMatrix(colorMatrix);
+                        g.DrawImage(originalBmp, new Rectangle(0, 0, width, height),
+                            0, 0, width, height, GraphicsUnit.Pixel, attributes);
+                    }
+                }
+
+                Bitmap edgeBmp = ApplySobelAndThreshold(gray, 100);
+
+                int[,] accumulator = new int[width, height];
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        Color c = edgeBmp.GetPixel(x, y);
+                        if (c.R == 255)
+                        {
+                            for (int angle = 0; angle < 360; angle += angleStep)
+                            {
+                                double theta = angle * Math.PI / 180;
+                                int a = (int)Math.Round(x - radius * Math.Cos(theta));
+                                int b = (int)Math.Round(y - radius * Math.Sin(theta));
+                                if (a >= 0 && a < width && b >= 0 && b < height)
+                                {
+                                    accumulator[a, b]++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Bitmap result = new Bitmap(originalBmp);
+                using (Graphics g = Graphics.FromImage(result))
+                {
+                    using (Pen pen = new Pen(Color.Blue, 2))
+                    {
+                        for (int y = 0; y < height; y++)
+                        {
+                            for (int x = 0; x < width; x++)
+                            {
+                                if (accumulator[x, y] >= threshold)
+                                {
+                                    g.DrawEllipse(pen, x - radius, y - radius, 2 * radius, 2 * radius);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                gray.Dispose();
+                edgeBmp.Dispose();
+                return result;
+            }, "hough_circle");
+        }
+
+
+        //                                                         *************morphological operations**************
+
+
+ 
+        //                                                         *************ApplyDilation setup**************
+
+
         [HttpPost]
         public IActionResult ApplyDilation(IFormFile imageFile, string isNewOriginal)
         {
@@ -1061,7 +1272,7 @@ namespace IP_Filters.Controllers
         }
         
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyErosion setup**************
         
 
         [HttpPost]
@@ -1076,7 +1287,7 @@ namespace IP_Filters.Controllers
             }, "erosion");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyOpen setup**************
 
         [HttpPost]
         public IActionResult ApplyOpen(IFormFile imageFile, string isNewOriginal) // Erosion then Dilation
@@ -1091,7 +1302,7 @@ namespace IP_Filters.Controllers
             }, "open_morph");
         }
 
-        //                                                         *************initial setup**************
+        //                                                         *************ApplyClose setup**************
 
         [HttpPost]
         public IActionResult ApplyClose(IFormFile imageFile, string isNewOriginal) // Dilation then Erosion
@@ -1211,204 +1422,7 @@ namespace IP_Filters.Controllers
         }
 
 
-        //                                                         *************initial setup**************
 
-
-        [HttpPost]
-        public IActionResult DetectLinesHough(IFormFile imageFile, string isNewOriginal)
-        {
-            return ProcessImageWithFilter(imageFile, isNewOriginal, (originalBmp) =>
-            {
-                int width = originalBmp.Width;
-                int height = originalBmp.Height;
-
-                // Convert to grayscale
-                Bitmap gray = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-                using (Graphics g = Graphics.FromImage(gray))
-                {
-                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
-                    {
-                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
-                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
-                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
-                new float[] {0, 0, 0, 1, 0},
-                new float[] {0, 0, 0, 0, 1}
-                    });
-
-                    using (ImageAttributes attributes = new ImageAttributes())
-                    {
-                        attributes.SetColorMatrix(colorMatrix);
-                        g.DrawImage(originalBmp, new Rectangle(0, 0, width, height),
-                            0, 0, width, height, GraphicsUnit.Pixel, attributes);
-                    }
-                }
-
-                Bitmap edge = ApplySobelAndThreshold(gray, 100);
-
-                int maxRho = (int)Math.Ceiling(Math.Sqrt(width * width + height * height));
-                int rhoRange = 2 * maxRho + 1;
-                int thetaSteps = 180;
-
-                int[,] accumulator = new int[thetaSteps, rhoRange];
-                double[] cosTable = new double[thetaSteps];
-                double[] sinTable = new double[thetaSteps];
-
-                for (int theta = 0; theta < thetaSteps; theta++)
-                {
-                    double rad = theta * Math.PI / 180;
-                    cosTable[theta] = Math.Cos(rad);
-                    sinTable[theta] = Math.Sin(rad);
-                }
-
-                for (int y = 0; y < height; y++)
-                {
-                    for (int x = 0; x < width; x++)
-                    {
-                        Color pixel = edge.GetPixel(x, y);
-                        if (pixel.R == 255) 
-                        {
-                            for (int theta = 0; theta < thetaSteps; theta++)
-                            {
-                                double rho = x * cosTable[theta] + y * sinTable[theta];
-                                int rhoIndex = (int)Math.Round(rho) + maxRho;
-                                if (rhoIndex >= 0 && rhoIndex < rhoRange)
-                                    accumulator[theta, rhoIndex]++;
-                            }
-                        }
-                    }
-                }
-
-                int threshold = 350; 
-                Bitmap result = new Bitmap(originalBmp);
-                using (Graphics g = Graphics.FromImage(result))
-                {
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (Pen pen = new Pen(Color.Red, 2))
-                    {
-                        for (int theta = 0; theta < thetaSteps; theta++)
-                        {
-                            for (int rhoIndex = 0; rhoIndex < rhoRange; rhoIndex++)
-                            {
-                                if (accumulator[theta, rhoIndex] > threshold)
-                                {
-                                    double rho = rhoIndex - maxRho;
-                                    double cosTheta = cosTable[theta];
-                                    double sinTheta = sinTable[theta];
-                                    Point pt1 = new Point();
-                                    Point pt2 = new Point();
-
-                                    if (sinTheta != 0)
-                                    {
-                                        pt1.X = 0;
-                                        pt1.Y = (int)((rho - pt1.X * cosTheta) / sinTheta);
-                                        pt2.X = width;
-                                        pt2.Y = (int)((rho - pt2.X * cosTheta) / sinTheta);
-                                    }
-                                    else
-                                    {
-                                        pt1.Y = 0;
-                                        pt1.X = (int)(rho / cosTheta);
-                                        pt2.Y = height;
-                                        pt2.X = (int)(rho / cosTheta);
-                                    }
-
-                                    g.DrawLine(pen, pt1, pt2);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                gray.Dispose();
-                edge.Dispose();
-                return result;
-            }, "hough_line");
-        }
-
-
-        //                                                         *************initial setup**************
-
-
-        [HttpPost]
-        public IActionResult DetectCirclesHough(IFormFile imageFile, string isNewOriginal)
-        {
-            return ProcessImageWithFilter(imageFile, isNewOriginal, (originalBmp) =>
-            {
-                int radius = 30;            
-                int threshold = 120;         
-                int angleStep = 2;           
-
-                int width = originalBmp.Width;
-                int height = originalBmp.Height;
-
-                Bitmap gray = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-                using (Graphics g = Graphics.FromImage(gray))
-                {
-                    ColorMatrix colorMatrix = new ColorMatrix(new float[][]
-                    {
-                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
-                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
-                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
-                new float[] {0, 0, 0, 1, 0},
-                new float[] {0, 0, 0, 0, 1}
-                    });
-
-                    using (ImageAttributes attributes = new ImageAttributes())
-                    {
-                        attributes.SetColorMatrix(colorMatrix);
-                        g.DrawImage(originalBmp, new Rectangle(0, 0, width, height),
-                            0, 0, width, height, GraphicsUnit.Pixel, attributes);
-                    }
-                }
-
-                Bitmap edgeBmp = ApplySobelAndThreshold(gray, 100);
-
-                int[,] accumulator = new int[width, height];
-
-                for (int y = 0; y < height; y++)
-                {
-                    for (int x = 0; x < width; x++)
-                    {
-                        Color c = edgeBmp.GetPixel(x, y);
-                        if (c.R == 255)
-                        {
-                            for (int angle = 0; angle < 360; angle += angleStep)
-                            {
-                                double theta = angle * Math.PI / 180;
-                                int a = (int)Math.Round(x - radius * Math.Cos(theta));
-                                int b = (int)Math.Round(y - radius * Math.Sin(theta));
-                                if (a >= 0 && a < width && b >= 0 && b < height)
-                                {
-                                    accumulator[a, b]++;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Bitmap result = new Bitmap(originalBmp);
-                using (Graphics g = Graphics.FromImage(result))
-                {
-                    using (Pen pen = new Pen(Color.Blue, 2))
-                    {
-                        for (int y = 0; y < height; y++)
-                        {
-                            for (int x = 0; x < width; x++)
-                            {
-                                if (accumulator[x, y] >= threshold)
-                                {
-                                    g.DrawEllipse(pen, x - radius, y - radius, 2 * radius, 2 * radius);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                gray.Dispose();
-                edgeBmp.Dispose();
-                return result;
-            }, "hough_circle");
-        }
 
 
 
