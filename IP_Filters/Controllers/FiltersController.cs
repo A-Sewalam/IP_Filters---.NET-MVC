@@ -15,6 +15,12 @@ namespace IP_Filters.Controllers
 {
     public class FiltersController : Controller
     {
+
+
+      //                                                         *************initial setup**************
+
+      
+    
         private readonly IWebHostEnvironment _environment;
         private static readonly Random _random = new Random();
         private double _spareGaussian = double.NaN;
@@ -56,6 +62,9 @@ namespace IP_Filters.Controllers
         }
 
 
+//                                                         *************default image method**************
+
+
         [HttpPost]
         public IActionResult DefaultColor(IFormFile imageFile, string isNewOriginal)
         {
@@ -82,6 +91,10 @@ namespace IP_Filters.Controllers
             }
             return RedirectToAction("Index", "Home");
         }
+
+
+//                                                         *************default image method**************
+        
 
         [HttpPost]
         public IActionResult GrayColor(IFormFile imageFile, string isNewOriginal)
@@ -128,6 +141,10 @@ namespace IP_Filters.Controllers
             TempData.Remove("Error");
             return RedirectToAction("Index", "Home");
         }
+
+
+        //                                                         *************default image method**************
+        
 
         [HttpPost]
         public IActionResult SaltAndPepperNoise(IFormFile imageFile, string isNewOriginal)
@@ -187,6 +204,11 @@ namespace IP_Filters.Controllers
             do { k++; p *= _random.NextDouble(); } while (p > L); return k - 1;
         }
 
+
+        //                                                         *************default image method**************
+
+        
+
         [HttpPost]
         public IActionResult GaussianNoise(IFormFile imageFile, string isNewOriginal)
         {
@@ -232,6 +254,11 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
+
+        //                                                         *************default image method**************
+
+
+
         [HttpPost]
         public IActionResult PoissonNoise(IFormFile imageFile, string isNewOriginal)
         {
@@ -275,6 +302,10 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
+        //                                                         *************default image method**************
+
+        
+
         [HttpPost]
         public IActionResult AdjustBrightness(IFormFile imageFile, string isNewOriginal, int brightness)
         {
@@ -315,6 +346,10 @@ namespace IP_Filters.Controllers
             TempData.Remove("Error");
             return RedirectToAction("Index", "Home");
         }
+
+        //                                                         *************default image method**************
+
+        
 
         [HttpPost]
         public IActionResult AdjustContrast(IFormFile imageFile, string isNewOriginal, double contrast)
@@ -360,7 +395,11 @@ namespace IP_Filters.Controllers
         }
 
 
+//                                                         *************default image method**************
 
+
+
+        //s_histogram_helper_methodes
       
 
         private int[] CalculateGrayscaleHistogram(Bitmap image)
@@ -380,6 +419,9 @@ namespace IP_Filters.Controllers
             }
             return histogram;
         }
+        
+        //e_histogram_helper_methodes
+        
 
         [HttpPost]
         public IActionResult ViewHistogram(IFormFile imageFile, string isNewOriginal)
@@ -417,6 +459,11 @@ namespace IP_Filters.Controllers
             TempData.Remove("Error");
             return RedirectToAction("Index", "Home");
         }
+
+
+        //                                                         *************default image method**************
+
+        
 
         [HttpPost]
         public IActionResult ApplyHistogramEqualization(IFormFile imageFile, string isNewOriginal)
@@ -507,6 +554,13 @@ namespace IP_Filters.Controllers
             TempData.Remove("Error");
             return RedirectToAction("Index", "Home");
         }
+
+
+        //                                                         *************initial setup**************
+
+        
+        //s_histogram_helper_methodes
+
 
         private Bitmap ApplyConvolutionFilter(Bitmap sourceImage, double[,] kernel, double factor = 1.0, int bias = 0, bool grayscaleOutput = false)
         {
@@ -639,6 +693,7 @@ namespace IP_Filters.Controllers
             }
             return resultBitmap;
         }
+        
 
         private double[,] GenerateGaussianKernel(int size, double sigma)
         {
@@ -699,6 +754,8 @@ namespace IP_Filters.Controllers
             return RedirectToAction("Index", "Home");
         }
 
+        //                                                         *************initial setup**************
+
         [HttpPost]
         public IActionResult ApplyLowPassFilter(IFormFile imageFile, string isNewOriginal)
         {
@@ -711,11 +768,15 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0 / 9.0), "lowpass");
         }
 
+        //                                                         *************initial setup**************
+
         [HttpPost]
         public IActionResult ApplyAveragingFilter(IFormFile imageFile, string isNewOriginal)
         {
             return ApplyLowPassFilter(imageFile, isNewOriginal); 
         }
+
+        //                                                         *************initial setup**************
 
         [HttpPost]
         public IActionResult ApplyMedianFilter(IFormFile imageFile, string isNewOriginal)
@@ -724,6 +785,8 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyMedianFilter(bmp, 3), "median");
         }
 
+        //                                                         *************initial setup**************
+
         [HttpPost]
         public IActionResult ApplyGaussianFilter(IFormFile imageFile, string isNewOriginal) 
         {
@@ -731,6 +794,8 @@ namespace IP_Filters.Controllers
             return ProcessImageWithFilter(imageFile, isNewOriginal,
                 (bmp) => ApplyConvolutionFilter(bmp, kernel), "gaussian_blur");
         }
+
+        //                                                         *************initial setup**************
 
         [HttpPost]
         public IActionResult ApplyHighPassFilter(IFormFile imageFile, string isNewOriginal)
@@ -744,6 +809,8 @@ namespace IP_Filters.Controllers
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0, 0), "highpass_sharpen");
         }
 
+        //                                                         *************initial setup**************
+
         [HttpPost]
         public IActionResult ApplyLaplacianFilter(IFormFile imageFile, string isNewOriginal)
         {
@@ -755,6 +822,8 @@ namespace IP_Filters.Controllers
             return ProcessImageWithFilter(imageFile, isNewOriginal,
                 (bmp) => ApplyConvolutionFilter(bmp, kernel, 1.0, 0, grayscaleOutput: true), "laplacian");
         }
+
+        //                                                         *************initial setup**************
 
         [HttpPost]
         public IActionResult ApplyLoGFilter(IFormFile imageFile, string isNewOriginal) 
@@ -774,6 +843,8 @@ namespace IP_Filters.Controllers
                 }
             }, "log_filter");
         }
+
+        //                                                         *************initial setup**************
 
         [HttpPost]
         public IActionResult ApplyPrewittFilter(IFormFile imageFile, string isNewOriginal)
@@ -833,6 +904,11 @@ namespace IP_Filters.Controllers
                 return resultBitmap;
             }, "prewitt");
         }
+
+
+
+    //                                                         *************initial setup**************
+    
 
         [HttpPost]
         public IActionResult ApplySobelFilter(IFormFile imageFile, string isNewOriginal)
@@ -968,7 +1044,10 @@ namespace IP_Filters.Controllers
         }
 
 
-        // --- MORPHOLOGICAL ACTIONS ---
+        //                                                         *************initial setup**************
+
+
+        
         [HttpPost]
         public IActionResult ApplyDilation(IFormFile imageFile, string isNewOriginal)
         {
@@ -980,6 +1059,10 @@ namespace IP_Filters.Controllers
                 }
             }, "dilation");
         }
+        
+
+        //                                                         *************initial setup**************
+        
 
         [HttpPost]
         public IActionResult ApplyErosion(IFormFile imageFile, string isNewOriginal)
@@ -993,6 +1076,8 @@ namespace IP_Filters.Controllers
             }, "erosion");
         }
 
+        //                                                         *************initial setup**************
+
         [HttpPost]
         public IActionResult ApplyOpen(IFormFile imageFile, string isNewOriginal) // Erosion then Dilation
         {
@@ -1005,6 +1090,8 @@ namespace IP_Filters.Controllers
                 }
             }, "open_morph");
         }
+
+        //                                                         *************initial setup**************
 
         [HttpPost]
         public IActionResult ApplyClose(IFormFile imageFile, string isNewOriginal) // Dilation then Erosion
@@ -1124,6 +1211,8 @@ namespace IP_Filters.Controllers
         }
 
 
+        //                                                         *************initial setup**************
+
 
         [HttpPost]
         public IActionResult DetectLinesHough(IFormFile imageFile, string isNewOriginal)
@@ -1235,6 +1324,9 @@ namespace IP_Filters.Controllers
                 return result;
             }, "hough_line");
         }
+
+
+        //                                                         *************initial setup**************
 
 
         [HttpPost]
